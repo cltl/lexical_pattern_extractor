@@ -10,14 +10,22 @@ The current tool only words for Dutch, as it makes use of the Google Web 5-gram 
 get frequencies for n-grams. It could be easily adapted to a new language or domain, providing a new source for getting ngram frequencies in that new domain/language.
 
 
-##Installatio##
+##Installation##
 
 This tools is completely developed in python, so you need python installed in your machine (recommended version 2.7). It also uses
 some functionality of our python library VUA_pylib which can be found at https://github.com/cltl/VUA_pylib. You will need to clone
 first this library and make sure it is on the python path or a folder where python can find it.
 
 Then to install the tool you need to clone the github repository from:
-https://github.com/cltl/ANBC
+https://github.com/cltl/lexical_pattern_extractor
+
+Basic installation:
+````
+$ cd your_local_folder
+$ git clone https://github.com/cltl/lexical_pattern_extractor.git
+$ cd lexical_pattern_extractor
+$ git clone https://github.com/cltl/VUA_pylib.git
+````
 
 
 ##Usage of the tool##
