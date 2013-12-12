@@ -1,6 +1,7 @@
 *.py[cod]
-
+my_folder
 # C extensions
+*~
 *.so
 
 # Packages
