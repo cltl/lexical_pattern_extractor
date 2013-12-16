@@ -39,25 +39,39 @@ There are 2 python scripts that perform the two tasks mentioned above:
 All the configuration options are provided on a configuration file that must follow this format:
 ````
 [general]
-output_folder = my_folder                       
-seeds = toeristisch;interessante                List of ; separated seeds
-ngram_len = 3                                   Length of ngrams to generate, with 5 it will use 5-grams, 4-grams, 3-grams and 2-grams
-percent_selected_patterns = 25                  Percentage of first patterns sorted according to PMI to be selected
-accept_patterns_with_at_least_num_seeds = 2     Minimum number of seed that a pattern must be found with to be considered as active
+output_folder = my_folder
+seeds = toeristisch;interessante
+ngram_len = 3
+percent_selected_patterns = 25
+accept_patterns_with_at_least_num_seeds = 1
+stop_words_for_patterns = UNK;KKK
+
+[templates]
+t1=is a X
+t2=* * X
+t3=X * *
 
 [google_web_query]
-limit_per_query = 100                           Limit in the query for ngrams
-min_freq_for_hit = 40                           Minimum frequency allowed for an n-gram
+limit_per_query = 100
+min_freq_for_hit = 40
 ````
 
-The options are:
+The options under generalare:
 * output_folder: output folder where you want to store all the generated data
 * seeds: List of ; separated seeds
 * ngram_len: Length of ngrams to generate, with 5 it will use 5-grams, 4-grams, 3-grams and 2-grams
 * percent_selected_patterns: Percentage of first patterns sorted according to PMI to be selected
 * accept_patterns_with_at_least_num_seeds: Minimum number of seed that a pattern must be found with to be considered as active
+* stop_words_for_patterns: includes a list of stop words (separated by ;). Patterns containing any of these stop words (case sensi
+used in the create_patterns.py (optional)
+
+Options google_web_query:
 * limit_per_query: Limit in the query for ngrams
 * min_freq_for_hit: Minimum frequency allowed for an n-gram
+
+Options for section template (this whole section is optional, if not included default templates will be generated)
+* List of lines with id=template including an X that will be replaced by the seed for performing the queries
+
 
 ##create_patterns.py##
 
@@ -98,7 +112,7 @@ $ python generate_candidate_words.py my_config.cfg > log.out 2> log.err &
 
 #Last features included#
 
-* 16-dec-2013: parameter in the configuration file (general section) called stop_words_for_patterns, which
+* 16th-dec-2013: parameter in the configuration file (general section) called stop_words_for_patterns, which
 includes a list of stop words (separated by ;). Patterns containing any of these stop words (case sensitive) will not be
 used in the create_patterns.py
 
@@ -112,6 +126,8 @@ accept_patterns_with_at_least_num_seeds = 1
 stop_words_for_patterns = UNK;<PUNC>
 ````
 
+* 16th-dec-2013: included [general].stop_words_for_patterns in the config
+* 16th-dec-2013: included [templates] in the configuration file
 
 
 #Contact#

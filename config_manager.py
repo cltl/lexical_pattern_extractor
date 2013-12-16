@@ -88,5 +88,14 @@ class Config_manager:
             stopwords = self.config.get('general','stop_words_for_patterns')
             stopwords = [s for s in stopwords.strip().split(';') if len(s)!=0]
         return stopwords
+    
+    def get_templates(self):
+        templates = []
+        if self.config.has_section('templates'):
+            for name, value in self.config.items('templates'):
+                #t1=* * X
+                templates.append(value)
+        return templates
+                
             
     

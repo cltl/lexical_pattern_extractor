@@ -83,7 +83,7 @@ class Clexical_pattern_extractor:
         return ret
     
     #Generates templates dor all possible ngrams 5,4,3,2..
-    def generate_templates(self,word):
+    def generate_default_templates(self,word):
         templates = []
         ngram_len = self.my_config.get_ngram_len()
         for l in xrange(ngram_len,1,-1):
@@ -93,6 +93,19 @@ class Clexical_pattern_extractor:
                 template[n] = word
                 templates.append(template)
         return templates
+    
+    def generate_templates(self,word):
+        templates = self.my_config.get_templates()
+        final_templates = None
+        if len(templates) == 0:
+            final_templates = self.generate_default_templates(word)
+        else:
+            final_templates = []
+            for t in templates:
+                t = t.replace('X',word)
+                final_templates.append(t.strip().split(' '))
+        return final_templates
+            
             
             
     def get_overall_frequency(self,pattern):
@@ -138,13 +151,17 @@ class Clexical_pattern_extractor:
         
         # Get the frequency of the target
         print>>sys.stderr,'Creating patterns for seed:',seed
-        freq_target = self.get_overall_frequency(seed)
+        #freq_target = self.get_overall_frequency(seed)
         
         # Get all the patterns+seed where the seed appears
         # interessante informatie over
         # interessante A B
         results_per_template = []
         templates = self.generate_templates(seed)
+        
+        print>>sys.stderr, templates
+        sys.exit(0)
+        
         total = 0
         for n,template in enumerate(templates):
             # Template is like interessante * *
