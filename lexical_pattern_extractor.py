@@ -18,6 +18,7 @@ class Clexical_pattern_extractor:
         self.freq_for_pattern = {}
         self.results_for_pattern = {}
         self.overall_frequency = {}
+        self.stop_words_for_pattern = None
 
     def set_config(self,filename):
         self.my_config.set_current_folder(os.path.dirname(os.path.realpath(__file__)))
@@ -121,7 +122,17 @@ class Clexical_pattern_extractor:
     def replace_word(self,target_word,pattern):
         return pattern.replace(target_word,'*')
         
+     
+    def pattern_contains_stop_word(self,pattern):
+        if self.stop_words_for_pattern is None:
+            self.stop_words_for_pattern = self.my_config.get_list_stop_words()
+        
+        for st in self.stop_words_for_pattern:
+            if st in pattern:
+                return st
+        return None
             
+               
     def get_patterns_for_seed(self,seed):
         # Processing one target, or seed
         
@@ -151,29 +162,33 @@ class Clexical_pattern_extractor:
                 print>>sys.stderr,'  Item number ',cnt,'of',total
                 cnt += 1
                 # Item could be --> interessante producten en
-                pattern_with_seed = item.get_word()    
-                freq_pattern_with_seed = item.get_hits()
-                print>>sys.stderr,'    Pattern+seed:',pattern_with_seed
-                print>>sys.stderr,'    Freq pattern+seed',freq_pattern_with_seed  
-                # Get the general pattern, from interessante producten en
-                # would get * producten en 
-                pattern = self.replace_word(seed, pattern_with_seed)
-                
-                freq_pattern = self.get_overall_frequency(pattern)
-                #results_for_new_pattern = self.query(pattern)
-                #freq_pattern = self.calculate_total_freq(results_for_new_pattern)
-               
-                print>>sys.stderr,'    Pattern:',pattern
-                print>>sys.stderr,'    Freq pattern',freq_pattern
-                
-                pmi = self.pmi(freq_pattern_with_seed,freq_target,freq_pattern)
-                
-                if pmi is not None:
-                    if pattern in self.results_for_pattern:
-                        self.results_for_pattern[pattern].append((seed,pmi))    #GLOBAL VARIABLE
-                    else:
-                        self.results_for_pattern[pattern] = [(seed,pmi)]
-                    print>>sys.stderr,'    PMI:',pmi
+                pattern_with_seed = item.get_word()   
+                stop_word = self.pattern_contains_stop_word()
+                if stop_word is not None:
+                    print>>sys.stderr,'   Pattern skipped because it contains stop word:',stop_word
+                else: 
+                    freq_pattern_with_seed = item.get_hits()
+                    print>>sys.stderr,'    Pattern+seed:',pattern_with_seed
+                    print>>sys.stderr,'    Freq pattern+seed',freq_pattern_with_seed  
+                    # Get the general pattern, from interessante producten en
+                    # would get * producten en 
+                    pattern = self.replace_word(seed, pattern_with_seed)
+                    
+                    freq_pattern = self.get_overall_frequency(pattern)
+                    #results_for_new_pattern = self.query(pattern)
+                    #freq_pattern = self.calculate_total_freq(results_for_new_pattern)
+                   
+                    print>>sys.stderr,'    Pattern:',pattern
+                    print>>sys.stderr,'    Freq pattern',freq_pattern
+                    
+                    pmi = self.pmi(freq_pattern_with_seed,freq_target,freq_pattern)
+                    
+                    if pmi is not None:
+                        if pattern in self.results_for_pattern:
+                            self.results_for_pattern[pattern].append((seed,pmi))    #GLOBAL VARIABLE
+                        else:
+                            self.results_for_pattern[pattern] = [(seed,pmi)]
+                        print>>sys.stderr,'    PMI:',pmi
         del results_per_template
 
 

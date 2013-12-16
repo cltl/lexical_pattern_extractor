@@ -82,3 +82,11 @@ class Config_manager:
         my_name = 'extracted_words.csv'
         return os.path.join(self.get_out_folder(),my_name)
     
+    def get_list_stop_words(self):
+        stopwords = []
+        if self.config.has_option('general','stop_words_for_patterns'):
+            stopwords = self.config.get('general','stop_words_for_patterns')
+            stopwords = [s for s in stopwords.strip().split(';') if len(s)!=0]
+        return stopwords
+            
+    
