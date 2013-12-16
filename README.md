@@ -101,14 +101,15 @@ $ python generate_candidate_words.py my_config.cfg > log.out 2> log.err &
 * 16-dec-2013: parameter in the configuration file (general section) called stop_words_for_patterns, which
 includes a list of stop words (separated by ;). Patterns containing any of these stop words (case sensitive) will not be
 used in the create_patterns.py
+
 ````
-- [general]
-- output_folder = my_folder
-- seeds = toeristisch;interessante
-- ngram_len = 3
-- percent_selected_patterns = 25
-- accept_patterns_with_at_least_num_seeds = 1
-- stop_words_for_patterns = UNK;<PUNC>
+[general]
+output_folder = my_folder
+seeds = toeristisch;interessante
+ngram_len = 3
+percent_selected_patterns = 25
+accept_patterns_with_at_least_num_seeds = 1
+stop_words_for_patterns = UNK;<PUNC>
 ````
 
 
