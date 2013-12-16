@@ -59,7 +59,8 @@ min_freq_for_hit = 40
 The options under generalare:
 * output_folder: output folder where you want to store all the generated data
 * seeds: List of ; separated seeds
-* ngram_len: Length of ngrams to generate, with 5 it will use 5-grams, 4-grams, 3-grams and 2-grams
+* ngram_len: Length of ngrams to generate, with 5 it will use 5-grams, 4-grams, 3-grams and 2-grams (only if no template section
+is included, and default templates are generated
 * percent_selected_patterns: Percentage of first patterns sorted according to PMI to be selected
 * accept_patterns_with_at_least_num_seeds: Minimum number of seed that a pattern must be found with to be considered as active
 * stop_words_for_patterns: includes a list of stop words (separated by ;). Patterns containing any of these stop words (case sensi
