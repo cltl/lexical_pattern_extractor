@@ -3,8 +3,8 @@
 ##Introduction##
 
 This tool allows to generate a set of words that appear in the same contexts as a seed list that you can provide as input. The process consists of 2 steps
-*1 Generation of patterns from a seed list
-*2 Extraction of candidate words from the previous list of patterns
+* Generation of patterns from a seed list
+* Extraction of candidate words from the previous list of patterns
 
 The current tool only words for Dutch, as it makes use of the Google Web 5-gram Database for Dutch, hosted in http://www.let.rug.nl/gosse/bin/Web1T5_freq.perl to
 get frequencies for n-grams. It could be easily adapted to a new language or domain, providing a new source for getting ngram frequencies in that new domain/language.
