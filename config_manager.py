@@ -60,15 +60,27 @@ class Config_manager:
     def get_ngram_len(self):
         return int(self.config.get('general','ngram_len'))
     
-    def get_limit_query(self):
-        if self.config.has_option('google_web_query','limit_per_query'):
-            return int(self.config.get('google_web_query','limit_per_query'))
+    def get_limit_query_pattern(self):
+        if self.config.has_option('google_web_query','limit_per_query_pattern_extraction'):
+            return int(self.config.get('google_web_query','limit_per_query_pattern_extraction'))
         else:
             return 1000
     
-    def get_min_freq(self):
-        if self.config.has_option('google_web_query','min_freq_for_hit'):
-            return int(self.config.get('google_web_query','min_freq_for_hit'))
+    def get_min_freq_pattern(self):
+        if self.config.has_option('google_web_query','min_freq_for_hit_pattern_extraction'):
+            return int(self.config.get('google_web_query','min_freq_for_hit_pattern_extraction'))
+        else:
+            return 100
+
+    def get_limit_query_candidate(self):
+        if self.config.has_option('google_web_query','limit_per_query_candidate_selection'):
+            return int(self.config.get('google_web_query','limit_per_query_candidate_selection'))
+        else:
+            return 1000
+    
+    def get_min_freq_candidate(self):
+        if self.config.has_option('google_web_query','min_freq_for_hit_candidate_selection'):
+            return int(self.config.get('google_web_query','min_freq_for_hit_candidate_selection'))
         else:
             return 100
         
@@ -79,7 +91,7 @@ class Config_manager:
             return 25
         
     def get_filename_csv(self):
-        my_name = 'extracted_words.csv'
+        my_name = 'candidate_words.csv'
         return os.path.join(self.get_out_folder(),my_name)
     
     def get_list_stop_words(self):
@@ -96,6 +108,16 @@ class Config_manager:
                 #t1=* * X
                 templates.append(value)
         return templates
+    
+    def get_min_patterns_per_candidate(self):
+        if self.config.has_option('general', 'min_patterns_per_candidate'):
+            return int(self.config.get('general', 'min_patterns_per_candidate'))
+        else:
+            return 0
                 
+    def get_filename_candidate_list(self):
+        my_name = 'candidate_words.xml'
+        return os.path.join(self.get_out_folder(),my_name)            
+    
             
     

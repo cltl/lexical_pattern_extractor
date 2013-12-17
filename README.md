@@ -45,18 +45,21 @@ ngram_len = 3
 percent_selected_patterns = 25
 accept_patterns_with_at_least_num_seeds = 1
 stop_words_for_patterns = UNK;KKK
+min_patterns_per_candidate = 2
 
 [templates]
-t1=is a X
-t2=* * X
-t3=X * *
+t1=* een #X#
+t2=* * ##X
+t3=#X# * *
 
 [google_web_query]
-limit_per_query = 100
-min_freq_for_hit = 40
+limit_per_query_pattern_extraction = 25
+min_freq_for_hit_pattern_extraction  = 40
+limit_per_query_candidate_selection = 123
+min_freq_for_hit_candidate_selection = 50
 ````
 
-The options under generalare:
+The options under general are:
 * output_folder: output folder where you want to store all the generated data
 * seeds: List of ; separated seeds
 * ngram_len: Length of ngrams to generate, with 5 it will use 5-grams, 4-grams, 3-grams and 2-grams (only if no template section
@@ -65,13 +68,17 @@ is included, and default templates are generated
 * accept_patterns_with_at_least_num_seeds: Minimum number of seed that a pattern must be found with to be considered as active
 * stop_words_for_patterns: includes a list of stop words (separated by ;). Patterns containing any of these stop words (case sensi
 used in the create_patterns.py (optional)
+* min_patterns_per_candidate: minimum number of patterns that a candidate word must appear with to be selected (optional, if not included by default
+all candidate words extracted will be selected)
 
 Options google_web_query:
-* limit_per_query: Limit in the query for ngrams
-* min_freq_for_hit: Minimum frequency allowed for an n-gram
+* limit_per_query_pattern_extraction: Limit in the query for ngrams (for the step of pattern extractiong from seeds)
+* min_freq_for_hit_pattern_extraction: Minimum frequency allowed for one n-gram (for the step of pattern extractiong from seeds)
+* limit_per_query_candidate_selection: Limit in the query for ngrams (for the step of candidate words generation from patterns)
+* min_freq_for_hit_candidate_selection: Minimum frequency allowed for one n-gram (for the step of candidate words generation from patterns)
 
 Options for section template (this whole section is optional, if not included default templates will be generated)
-* List of lines with id=template including an X that will be replaced by the seed for performing the queries
+* List of lines with id=template including an #X# that will be replaced by the seed for performing the queries
 
 
 ##create_patterns.py##
@@ -99,8 +106,34 @@ and the process will be faster.
 
 ##generate_candidate_words.py##
 
-This script takes the list of active patterns from the file $FOLDER/extracted_patterns.xml and extract a set of candidate words. The final list will be shown on the screen and
-stored in a CSV file with the format target_word;pmi stored in $FOLDER/extracted_words.csv
+This script takes the list of active patterns from the file $FOLDER/extracted_patterns.xml and extract a set of candidate words. The final list of candidate words will be:
+* Printed on the screen
+* Stored as a CSV file on the file $FOLDER/candidate_words.csv
+* Stored as a XML file on the file $FOLDER/candidate_words.xml
+
+This XML will be like:
+````
+<words>
+  <word pmi="10.143692306">
+    <value>ontmoeting</value>
+    <pattern pmi="9.94395216888" pattern="vond een *"/>
+    <pattern pmi="10.3434324431" pattern="tot een *"/>
+  </word>
+  <word pmi="10.073567218">
+    <value>grap</value>
+    <pattern pmi="10.3474522659" pattern="dit een *"/>
+    <pattern pmi="9.79968217009" pattern="was een *"/>
+  </word>
+  ...
+</words>
+````
+Each candidate word is represented as a "word" element, with the total "pmi" as an attribute. The actual candidate word string is stored in the subelement
+"value", and each of the patterns from where this candidate word was extracted, are represented as a "pattern" element, containing the pmi value of association
+of the word with the pattern in each case.
+
+
+
+#Quick start#
 
 
 An example of usage of the tool would be:
@@ -115,6 +148,9 @@ $ python generate_candidate_words.py my_config.cfg > log.out 2> log.err &
 
 * 16th-dec-2013: included [general].stop_words_for_patterns in the config
 * 16th-dec-2013: included [templates] in the configuration file
+* 17th-dec-2013: included different parameters for querying google for pattern extraction and target extraction
+* 17th-dec-2013: included parameter min_patterns_per_candidate for restricting the output
+* 17th-dec-2013: generate_candidate creates an XML also
 
 
 #Contact#

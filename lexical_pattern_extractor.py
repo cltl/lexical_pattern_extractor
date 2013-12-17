@@ -19,7 +19,12 @@ class Clexical_pattern_extractor:
         self.results_for_pattern = {}
         self.overall_frequency = {}
         self.stop_words_for_pattern = None
+        self.mode = None ## 'PATTERN' or ## CANDIDATE 
 
+    def set_mode(self,mode):
+        self.mode = mode
+        
+        
     def set_config(self,filename):
         self.my_config.set_current_folder(os.path.dirname(os.path.realpath(__file__)))
         self.my_config.set_config(filename)
@@ -47,8 +52,15 @@ class Clexical_pattern_extractor:
         if isinstance(pattern, list):
             pattern = ' '.join(pattern)
                 
-        
-        name_of_stored_file = self.my_config.get_name_stored_file(pattern, self.my_config.get_min_freq(), self.my_config.get_limit_query(),fixed)
+        if self.mode == 'CANDIDATE':
+            min_freq = self.my_config.get_min_freq_candidate()
+            limit =  self.my_config.get_limit_query_candidate()
+        else: # PATTERN
+            min_freq = self.my_config.get_min_freq_pattern()
+            limit = self.my_config.get_limit_query_pattern()
+   
+            
+        name_of_stored_file = self.my_config.get_name_stored_file(pattern, min_freq, limit,fixed)
         if os.path.exists(name_of_stored_file):
             fic = open(name_of_stored_file,'rb')
             ret = cPickle.load(fic)
@@ -58,8 +70,8 @@ class Clexical_pattern_extractor:
         else:
             # WE need to query the web service 
             google_web = Cgoogle_web_nl()
-            google_web.set_limit(self.my_config.get_limit_query())
-            google_web.set_min_freq(self.my_config.get_min_freq())
+            google_web.set_limit(limit)
+            google_web.set_min_freq(min_freq)
         
         
             try:
@@ -102,7 +114,7 @@ class Clexical_pattern_extractor:
         else:
             final_templates = []
             for t in templates:
-                t = t.replace('X',word)
+                t = t.replace('#X#',word)
                 final_templates.append(t.strip().split(' '))
         return final_templates
             
@@ -151,16 +163,13 @@ class Clexical_pattern_extractor:
         
         # Get the frequency of the target
         print>>sys.stderr,'Creating patterns for seed:',seed
-        #freq_target = self.get_overall_frequency(seed)
+        freq_target = self.get_overall_frequency(seed)
         
         # Get all the patterns+seed where the seed appears
         # interessante informatie over
         # interessante A B
         results_per_template = []
         templates = self.generate_templates(seed)
-        
-        print>>sys.stderr, templates
-        sys.exit(0)
         
         total = 0
         for n,template in enumerate(templates):
@@ -180,12 +189,12 @@ class Clexical_pattern_extractor:
                 cnt += 1
                 # Item could be --> interessante producten en
                 pattern_with_seed = item.get_word()   
-                stop_word = self.pattern_contains_stop_word()
+                stop_word = self.pattern_contains_stop_word(pattern_with_seed)
+                print>>sys.stderr,'    Pattern+seed:',pattern_with_seed
                 if stop_word is not None:
-                    print>>sys.stderr,'   Pattern skipped because it contains stop word:',stop_word
+                    print>>sys.stderr,'    Pattern skipped because it contains stop word:',stop_word
                 else: 
                     freq_pattern_with_seed = item.get_hits()
-                    print>>sys.stderr,'    Pattern+seed:',pattern_with_seed
                     print>>sys.stderr,'    Freq pattern+seed',freq_pattern_with_seed  
                     # Get the general pattern, from interessante producten en
                     # would get * producten en 
@@ -206,6 +215,7 @@ class Clexical_pattern_extractor:
                         else:
                             self.results_for_pattern[pattern] = [(seed,pmi)]
                         print>>sys.stderr,'    PMI:',pmi
+                print>>sys.stderr
         del results_per_template
 
 
@@ -249,8 +259,7 @@ class Clexical_pattern_extractor:
                 if len(seeds_pmi) >= min_num_seeds_to_appear_with: # will be selected
                     active = '1'
                     num_selected += 1
-                
-                       
+                             
             ele = etree.Element('pattern',attrib={'pmi':str(overall_pmi),'active':active,'num':str(num_pattern)})
             val = etree.Element('value')
             val.text = pattern
@@ -345,44 +354,68 @@ class Clexical_pattern_extractor:
                                 
                 if this_pmi is not None:
                     if target_word in self.pmi_for_target:
-                        self.pmi_for_target[target_word].append(this_pmi)
+                        self.pmi_for_target[target_word].append((this_pmi, pattern))
                     else:
-                        self.pmi_for_target[target_word] = [this_pmi]
+                        self.pmi_for_target[target_word] = [(this_pmi,pattern)]
                     
  
         
     def agglomerate_candidate_words_avg(self):
         self.final_target_words = []
         for target_word, list_pmis in self.pmi_for_target.items():
-            avg_pmi  = sum(pmi for pmi in list_pmis) / len(list_pmis)
+            avg_pmi  = sum(pmi for pmi,_ in list_pmis) / len(list_pmis)
             self.final_target_words.append((target_word,avg_pmi))
-            
-    def generate_candidate_words(self):
-        # This will create self.pmi_for_target, which contains for each target word a list of pmi associated
-        # ['target'] == [pm1, pm2. pm3]
-        self.get_candidates_words()
-        
-        #This will created a list self.final_target_words ==> (A,pmi), (B,pmi)...
-        self.agglomerate_candidate_words_avg()
-        
         self.final_target_words.sort(key=itemgetter(1),reverse=True)
-        
-        self.save_to_csv()
-        
-    def print_to_screen(self):
-        print '%20s %15s' % ('Target word','Average PMI')
-        print '#' *50                             
-        for tw,pmi in self.final_target_words:
-            print '%20s %10.5f' % (tw,pmi)
-        print '#' *50                             
+                          
 
-    def save_to_csv(self):
+    def save_candidates(self):
+        min_patterns_per_candidate = self.my_config.get_min_patterns_per_candidate()
+        #Saving to CSV and printing to screen
+        print '%20s %15s' % ('Target word','Average PMI')
+        print '#' *50  
         filename = self.my_config.get_filename_csv()
         fic = open(filename,'w')
+        root = etree.Element('words')
+        num_candidates = 0
         for tw,pmi in self.final_target_words:
-            fic.write('%s;%f\n' % (tw,pmi))
+            pmi_target_list = self.pmi_for_target[tw]
+            
+            if len(pmi_target_list) >= min_patterns_per_candidate:  #Specifided on the attribute min_patterns_per_candidate
+                num_candidates += 1
+                word_obj = etree.Element('word')
+                word_obj.set('pmi',str(pmi))
+                root.append(word_obj)
+                value_obj = etree.Element('value')
+                value_obj.text = tw
+                word_obj.append(value_obj)
+                
+                for pmi, pattern in pmi_target_list:
+                    pattern_obj = etree.Element('pattern')
+                    pattern_obj.set('pmi',str(pmi))
+                    pattern_obj.set('pattern',str(pattern))
+                    word_obj.append(pattern_obj)
+                
+                
+                ## TO THE CSV file             
+                fic.write('%s;%f\n' % (tw,pmi))
+                
+                ## TO THE SCREEN
+                print '%20s %10.5f %d' % (tw,pmi,len(pmi_target_list))
+                
+        
         fic.close()
+        filename_candidate = self.my_config.get_filename_candidate_list()
+        tree = etree.ElementTree(element=root)
+        tree.write(filename_candidate,encoding='UTF-8',pretty_print=True,xml_declaration=True)
+        print>>sys.stderr,'Candidate words saved in',filename_candidate
+        print>>sys.stderr,'   Min number of patterns to appear with',min_patterns_per_candidate
+        print>>sys.stderr,'   Number of candidate words:',num_candidates 
+        
+        print '#' *50                             
         print>>sys.stderr,'Target words saved in ',filename
+        
+    def save_to_xml(self):
+        pass
     
 if __name__ == '__main__':
     print '''
