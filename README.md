@@ -1,7 +1,5 @@
 #Lexical pattern extractor#
 
-Hello
-
 ##Introduction##
 
 This tool allows to generate a set of words that appear in the same contexts as a seed list that you can provide as input. The process consists of 2 steps
