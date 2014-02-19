@@ -5,10 +5,12 @@ import sys
 import cPickle
 import os
 import time
-from config_manager import Config_manager
+from config_manager_pattern import Config_manager
 from operator import itemgetter
 from lxml import etree
 from VUA_pylib.corpus_reader.google_web_nl import Cgoogle_web_nl, Citem
+from ngram_frequency_index import Cngram_index_enquirer
+
 
 
 
@@ -25,8 +27,12 @@ class Clexical_pattern_extractor:
         self.mode = mode
         
         
-    def set_config(self,filename):
-        self.my_config.set_current_folder(os.path.dirname(os.path.realpath(__file__)))
+    def set_config(self,filename,current_folder=None):
+        if current_folder is None:
+            self.my_config.set_current_folder(os.path.dirname(os.path.realpath(__file__)))
+        else:
+            self.my_config.set_current_folder(current_folder)
+            
         self.my_config.set_config(filename)
         
 
@@ -48,6 +54,21 @@ class Clexical_pattern_extractor:
             os.mkdir(self.my_config.get_folder_cached_results())
             
     def query(self,pattern,fixed=None):
+        #items = self.query_google(pattern,fixed)
+        if fixed is None:
+            only_match = False
+        else:
+            only_match = True
+        items = self.query_ngram_index(pattern,only_match)
+        return items
+    
+    def query_ngram_index(self,pattern,only_match=False):
+        enquirer = Cngram_index_enquirer('/home/izquierdo/cltl_repos/lexical_pattern_extractor/indexes/hotels_set1_2_en')
+        items = enquirer.query(pattern,only_match)
+        return items
+        
+    
+    def query_google(self,pattern,fixed=None):
         ret = None
         if isinstance(pattern, list):
             pattern = ' '.join(pattern)
@@ -163,7 +184,7 @@ class Clexical_pattern_extractor:
         
         # Get the frequency of the target
         print>>sys.stderr,'Creating patterns for seed:',seed
-        freq_target = self.get_overall_frequency(seed)
+        #freq_target = self.get_overall_frequency(seed)
         
         # Get all the patterns+seed where the seed appears
         # interessante informatie over
@@ -185,12 +206,12 @@ class Clexical_pattern_extractor:
         cnt = 0    
         for template, results in results_per_template:
             for item in results:
-                print>>sys.stderr,'  Item number ',cnt,'of',total
+                print>>sys.stderr,'  Item number ',cnt,'of',total,' seed=',seed.encode('utf-8')
                 cnt += 1
                 # Item could be --> interessante producten en
                 pattern_with_seed = item.get_word()   
                 stop_word = self.pattern_contains_stop_word(pattern_with_seed)
-                print>>sys.stderr,'    Pattern+seed:',pattern_with_seed
+                print>>sys.stderr,'    Pattern+seed:',pattern_with_seed.encode('utf-8')
                 if stop_word is not None:
                     print>>sys.stderr,'    Pattern skipped because it contains stop word:',stop_word
                 else: 
@@ -204,10 +225,12 @@ class Clexical_pattern_extractor:
                     #results_for_new_pattern = self.query(pattern)
                     #freq_pattern = self.calculate_total_freq(results_for_new_pattern)
                    
-                    print>>sys.stderr,'    Pattern:',pattern
+                    print>>sys.stderr,'    Pattern:',pattern.encode('utf-8')
                     print>>sys.stderr,'    Freq pattern',freq_pattern
                     
-                    pmi = self.pmi(freq_pattern_with_seed,freq_target,freq_pattern)
+                    #pmi = self.pmi(freq_pattern_with_seed,freq_target,freq_pattern)
+                    pmi = self.simplified_pmi(freq_pattern_with_seed,freq_pattern)
+
                     
                     if pmi is not None:
                         if pattern in self.results_for_pattern:
@@ -233,6 +256,12 @@ class Clexical_pattern_extractor:
             pmi = 18 + math.log10( 1.0 * A / B )
         return pmi      
         
+    def simplified_pmi(self,freq_pat_seed,freq_pat):
+        if freq_pat != 0:
+            return float(freq_pat_seed)/freq_pat
+        else:
+            return 0 
+        
     def generate_patterns(self):
         
         seeds = self.my_config.get_seeds()
@@ -252,22 +281,34 @@ class Clexical_pattern_extractor:
         #ROOT
         root = etree.Element('patterns')
         num_selected = 0 
-        for num_pattern, (pattern, overall_pmi) in enumerate(self.list_pattern_pmi):
+        
+        
+        active_patterns = []
+        inactive_patterns = []
+        
+        for pattern, overall_pmi in self.list_pattern_pmi:
             seeds_pmi =  self.results_for_pattern[pattern]
-            active = '0'
-            if num_selected < max_patterns: # Could be selected
-                if len(seeds_pmi) >= min_num_seeds_to_appear_with: # will be selected
-                    active = '1'
+            if num_selected < max_patterns:
+                if len(seeds_pmi) >= min_num_seeds_to_appear_with:
                     num_selected += 1
-                             
-            ele = etree.Element('pattern',attrib={'pmi':str(overall_pmi),'active':active,'num':str(num_pattern)})
-            val = etree.Element('value')
-            val.text = pattern
-            ele.append(val)
-            root.append(ele)
-            for seed, pmi in self.results_for_pattern[pattern]:
-                ele_seed = etree.Element('seed',attrib={'word':seed,'pmi':str(pmi)})
-                ele.append(ele_seed)
+                    active_patterns.append((pattern,overall_pmi,seeds_pmi))
+                else:
+                    inactive_patterns.append((pattern,overall_pmi,seeds_pmi))
+            else:
+                inactive_patterns.append((pattern,overall_pmi,seeds_pmi))
+        
+        num_pattern = 0
+        for these_patterns, active in [(active_patterns,"1"),(inactive_patterns,"0")]:
+            for pattern,overall_pmi,seeds_pmi in these_patterns:
+                ele = etree.Element('pattern',attrib={'pmi':str(overall_pmi),'active':active,'num':str(num_pattern)})
+                num_pattern+=1
+                val = etree.Element('value')
+                val.text = pattern
+                ele.append(val)      
+                root.append(ele)
+                for seed, pmi in self.results_for_pattern[pattern]:
+                    ele_seed = etree.Element('seed',attrib={'word':seed,'pmi':str(pmi)})
+                    ele.append(ele_seed)
         
         tree = etree.ElementTree(element=root)
         tree.write(filename_patterns,encoding='UTF-8',pretty_print=True,xml_declaration=True)
@@ -322,6 +363,7 @@ class Clexical_pattern_extractor:
     def agglomerate_patterns_by_avg(self):
         self.list_pattern_pmi = []
         for pattern, pairs in self.results_for_pattern.items():
+            
             avg_pmi = sum(pmi_with_seed for seed,pmi_with_seed in pairs)/len(pairs)
             self.list_pattern_pmi.append((pattern,avg_pmi))
         self.list_pattern_pmi.sort(key=itemgetter(1),reverse=True)
@@ -334,7 +376,7 @@ class Clexical_pattern_extractor:
         for n, (pattern, pmi) in enumerate(self.active_patterns):
             # Pattern can be * journalisten en
             # We need to query and get those words
-            print>>sys.stderr,'  Processing pattern',pattern,'pmi',pmi,'('+str(n)+' of '+str(len(self.active_patterns))+')'
+            print>>sys.stderr,'  Processing pattern |'+pattern.encode('utf-8')+'| pmi',pmi,'('+str(n)+' of '+str(len(self.active_patterns))+')'
             print>>sys.stderr,'    Querying for all the words matching the pattern'
             target_words_results = self.query(pattern,fixed='hidden')
             print>>sys.stderr,'    Number of words:',len(target_words_results)
@@ -345,8 +387,9 @@ class Clexical_pattern_extractor:
                 freq_pattern_target = target_word_item.get_hits()
                 freq_target = self.get_overall_frequency(target_word)
                 
-                this_pmi = self.pmi(freq_pattern_target, freq_target, freq_pattern)
-                print>>sys.stderr,'    Target word:',target_word
+                #this_pmi = self.pmi(freq_pattern_target, freq_target, freq_pattern)
+                this_pmi = self.simplified_pmi(freq_pattern_target, freq_target)
+                print>>sys.stderr,'    Target word:',target_word.encode('utf-8')
                 print>>sys.stderr,'        Freq target:',freq_target
                 print>>sys.stderr,'        Freq target+pattern:',freq_pattern_target
                 print>>sys.stderr,'        Freq pattern:',freq_pattern
@@ -362,16 +405,24 @@ class Clexical_pattern_extractor:
         
     def agglomerate_candidate_words_avg(self):
         self.final_target_words = []
+        print>>sys.stderr,'Agglomerating candidate words by average'
         for target_word, list_pmis in self.pmi_for_target.items():
+            print>>sys.stderr,'  ',target_word.encode('utf-8')
+            for pmi, pattern in list_pmis:
+                print>>sys.stderr,'    Pattern',pattern.encode('utf-8'),'pmi:',pmi
+            print>>sys.stderr
             avg_pmi  = sum(pmi for pmi,_ in list_pmis) / len(list_pmis)
-            self.final_target_words.append((target_word,avg_pmi))
+            total_pmi = sum(pmi for pmi,_ in list_pmis)
+            num_patterns = len(list_pmis)
+            value = num_patterns
+            self.final_target_words.append((target_word,value))
         self.final_target_words.sort(key=itemgetter(1),reverse=True)
                           
 
     def save_candidates(self):
         min_patterns_per_candidate = self.my_config.get_min_patterns_per_candidate()
         #Saving to CSV and printing to screen
-        print '%20s %15s' % ('Target word','Average PMI')
+        print '%20s %15s %20s' % ('Target word','Average PMI','Appear with #patterns')
         print '#' *50  
         filename = self.my_config.get_filename_csv()
         fic = open(filename,'w')
@@ -392,15 +443,16 @@ class Clexical_pattern_extractor:
                 for pmi, pattern in pmi_target_list:
                     pattern_obj = etree.Element('pattern')
                     pattern_obj.set('pmi',str(pmi))
-                    pattern_obj.set('pattern',str(pattern))
+                    pattern_obj.set('pattern',pattern)
                     word_obj.append(pattern_obj)
                 
                 
                 ## TO THE CSV file             
-                fic.write('%s;%f\n' % (tw,pmi))
+                fic.write('%s;%f\n' % (tw.encode('utf-8'),pmi))
                 
                 ## TO THE SCREEN
-                print '%20s %10.5f %d' % (tw,pmi,len(pmi_target_list))
+                if num_candidates <= 50:
+                    print '%20s %10.2f %d' % (tw.encode('utf-8'),pmi,len(pmi_target_list))
                 
         
         fic.close()
