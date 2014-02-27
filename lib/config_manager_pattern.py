@@ -21,6 +21,17 @@ class Config_manager:
             self.out_folder = os.path.join(self.cwd,output_folder_cfg)
             
             
+    def get_index_folder(self):
+        my_name = 'index_folder'
+        index_folder = None
+        if self.config.has_option('general', my_name):
+            ind_fol = self.config.get('general', my_name)
+            if os.path.isabs(ind_fol):
+                index_folder = ind_fol
+            else:
+                index_folder = os.path.join(self.cwd,ind_fol)
+        return index_folder
+        
     def get_folder_cached_results(self):
         my_name = 'cached_results'
         return os.path.join(self.get_out_folder(),my_name)

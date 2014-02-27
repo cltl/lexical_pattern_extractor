@@ -63,7 +63,12 @@ class Clexical_pattern_extractor:
         return items
     
     def query_ngram_index(self,pattern,only_match=False):
-        enquirer = Cngram_index_enquirer('/home/izquierdo/cltl_repos/lexical_pattern_extractor/indexes/hotels_set1_2_en')
+        index_folder = self.my_config.get_index_folder()
+        if index_folder is None:
+            print>>sys.stderr,'Index folder not found, it must be set in the config file'
+            print>>sys.stderr,'[general]\nindex_folder = PAATH_TO_INDEX_FOLDER'
+            sys.exit(-1)
+        enquirer = Cngram_index_enquirer(index_folder)
         items = enquirer.query(pattern,only_match)
         return items
         
