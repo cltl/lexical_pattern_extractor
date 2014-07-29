@@ -5,6 +5,7 @@ from lib.ngram_frequency_index import Cngram_index_enquirer
 
 if __name__ == '__main__':
     folder = 'indexes/hotels_set1_2_en'
+    folder = 'indexes/raw_hotel_reviews_en'
         
     enquirer = Cngram_index_enquirer(folder)
     pat = sys.argv[1]

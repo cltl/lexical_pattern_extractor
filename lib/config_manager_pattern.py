@@ -47,6 +47,9 @@ class Config_manager:
         
         return complete_name
     
+    def get_measure_type(self):
+        return str(self.config.get('general','measure'))
+    
     def get_min_num_seeds_to_appear_with(self):
         return int(self.config.get('general','accept_patterns_with_at_least_num_seeds'))
     

@@ -1,8 +1,8 @@
-from config_manager_indexer import Config_manager
 import sys
 import os
 import shutil
 import math
+import re
 
 from collections import defaultdict
 from operator import itemgetter
@@ -10,54 +10,62 @@ from subprocess import Popen,PIPE
 from KafNafParserPy import KafNafParser
 
 METADATA = 'metadata.txt'
+DELIMITER = '##'
 
 class Cngram_index_creator:
     def __init__(self):
-        self.my_config = Config_manager()
         self.list_input_files = []
         self.punctuation = []
         self.convert_to_lowercase = False
         self.datafile_for_ngram = {}
         self.datafile_for_ngram_subset = {}
+        self.max_ngram_len = 1
+        self.min_ngram_len = 1
+        self.input_file_list = None
+        self.out_folder = None
+        self.remove_out_if_exists = True
+        self.include_sentence_delimiters = True
+        self.min_freq_for_ngram = 1
+        
+    def set_min_freq_for_ngram(self,m):
+        self.min_freq_for_ngram = m
+        
+    def set_include_sentence_delimiters(self,flag):
+        self.include_sentence_delimiters = flag
+        
+    def set_remove_out_if_exists(self,flag):
+        self.remove_out_if_exists = flag
+        
+    def set_out_folder(self,of):
+        self.out_folder = of
 
-    def set_config(self,filename,current_folder=None):
-        if current_folder is None:
-            self.my_config.set_current_folder(os.path.dirname(os.path.realpath(__file__)))
-        else:
-            self.my_config.set_current_folder(current_folder)
-        self.my_config.set_config(filename)
+    def set_punctuation(self,string_punc):
+        self.punctuation = [c for c in string_punc]
         
-        # Some initilizations
-        self.punctuation = self.my_config.get_punctuation()
-        self.convert_to_lowercase = self.my_config.get_convert_to_lowercase()
+    def set_convert_to_lowercase(self,flag):
+        self.convert_to_lowercase = flag
         
-        # Create output folder
-        output_folder = self.my_config.get_output_folder()
-        if os.path.exists(output_folder):
-            if self.my_config.get_remove_output_folder_if_exists():
-                shutil.rmtree(output_folder)
-                os.mkdir(output_folder)
-            else:
-                pass #Nothing if it exists and we dont want to remove it
-        else:
-             os.mkdir(output_folder)
-            
-       
+    def set_max_ngram_len(self,m):
+        self.max_ngram_len = m
+        
+    def set_min_ngram_len(self,m):
+        self.min_ngram_len = m
+        
+    def set_input_file_list(self,f):
+        self.input_file_list = f
+        
+      
        
     ## LOADING INPUT FILES 
     def load_input_files_from_file(self,filename):
         fic = open(filename,'r')
         for line in fic:
             file = line.strip()
-            if file[0] != '/':
-                file = os.path.join(self.my_config.get_cwd(),file)
             self.list_input_files.append(file)
                      
     def load_input_files(self):
-        # 1) try with file with list of filnames
-        filename = self.my_config.get_file_with_list_inputs()
-        if filename is not None:
-            self.load_input_files_from_file(filename)
+        if self.input_file_list is not None:
+            self.load_input_files_from_file(self.input_file_list)
     ## END LOADER FILES
             
     def get_file_desc_for_ngram(self,n,subset=False):
@@ -72,54 +80,43 @@ class Cngram_index_creator:
         if n in datafile:
             filengram, fileidx, filedesc = datafile[str(n)]
         else:
-            filengram = self.my_config.get_filename_for_ngrams(n)+suffix
-            fileidx = self.my_config.get_filename_for_idx(n)+suffix
+            my_ngram_name = 'ngrams.len_%s.txt' % n
+            filengram = os.path.join(self.out_folder,my_ngram_name)
+            
+            my_idx_name = 'ngrams.len_%s.idx.txt' % n 
+            fileidx = os.path.join(self.out_folder,my_idx_name)
+             
             filedesc = open(filengram,'w')
             datafile[n] = (filengram,fileidx,filedesc)
         return filedesc
     
     
-    def get_token_ids_under_opinion_expression(self,xml_obj):
-        token_ids = set()
-        for opinion in xml_obj.get_opinions():
-            opinion_expression = opinion.get_expression()
-            if opinion_expression is not None:
-                for tid in opinion_expression.get_span().get_span_ids():
-                    for wid in xml_obj.get_dict_tokens_for_termid(tid):
-                        token_ids.add(wid)
-        return token_ids
-    
-    def get_token_ids_under_opinion_target(self,xml_obj):
-        token_ids = set()
-        for opinion in xml_obj.get_opinions():
-            opinion_target = opinion.get_target()
-            if opinion_target is not None:
-                span_obj = opinion_target.get_span()
-                if span_obj is not None:
-                    for tid in span_obj.get_span_ids():
-                        for wid in xml_obj.get_dict_tokens_for_termid(tid):
-                            token_ids.add(wid)
-        return token_ids
-                
+              
     ## PROCESSING
     def process_single_file(self,file):
-        xml_obj = KafNafParser(file)
-        max_ngram_len = self.my_config.get_max_ngram_len()
-        min_ngram_len = self.my_config.get_min_ngram_len()
+        try:
+            xml_obj = KafNafParser(file)
+        except:
+            print>>sys.stderr,'Error parsing',file,': skipped'
+            return        
+
+
         print>>sys.stderr,'Processing file', os.path.basename(file), 'Type:',xml_obj.get_type()
         sentences = []
         current_sent = []
         this_sent = None
                  
                  
-        selected_token_ids = None
-        subset_index_for = self.my_config.get_subset_index_for()
-        if subset_index_for == 'opinion_expression':
-            selected_token_ids = self.get_token_ids_under_opinion_expression(xml_obj)
-        elif subset_index_for == 'opinion_target':
-            selected_token_ids = self.get_token_ids_under_opinion_target(xml_obj)
-                
-                 
+               
+         
+        pos_for_wid = {} ## For each token id (wid) the pos of it
+        for term in xml_obj.get_terms():
+            w_ids = term.get_span().get_span_ids()
+            pos = term.get_pos()
+            for wid in term.get_span().get_span_ids():
+                pos_for_wid[wid] = pos
+
+            
         for token in xml_obj.get_tokens():
             wid = token.get_id()
             value = token.get_text()
@@ -142,27 +139,21 @@ class Cngram_index_creator:
         sentences.append(current_sent)
         
         for sentence in sentences:
-            if self.my_config.get_include_sentence_delimiters():
+            if self.include_sentence_delimiters:
                 sentence.insert(0,('xxx','<S>'))
                 sentence.append(('xxx','</S>'))
         
             for idx in range(0,len(sentence)):
-                for ngramlen in range(min_ngram_len,max_ngram_len+1):
+                for ngramlen in range(self.min_ngram_len,self.max_ngram_len+1):
                     file_desc = self.get_file_desc_for_ngram(ngramlen)
                     start = idx
                     end = start + ngramlen
                     if end <= len(sentence):
                         this_ngram = '\t'.join(value for wid, value in sentence[start:end])
-                        file_desc.write(this_ngram.encode('utf-8')+'\n')
+                        this_ngram_pos = '\t'.join(pos_for_wid.get(wid,'X') for wid, value in sentence[start:end])
+                        file_desc.write(this_ngram.encode('utf-8')+'\t'+DELIMITER+'\t'+this_ngram_pos+'\n')
 
-                        ##Check for overlapping                        
-                        if selected_token_ids is not None:
-                            ##Check for overlapping
-                            wids_in_ngram = set(wid for wid, value in sentence[start:end])
-                            if wids_in_ngram.issubset(selected_token_ids):
-                                file_desc_subset = self.get_file_desc_for_ngram(ngramlen,subset=True)
-                                file_desc_subset.write(this_ngram.encode('utf-8')+'\n')
-                                
+                                 
                         
     def close_all(self):
         for ngramlen, datafile in self.datafile_for_ngram.items():
@@ -186,7 +177,7 @@ class Cngram_index_creator:
             datafile = self.datafile_for_ngram_subset
             suffix = '.subset'
         
-        metadata = open(os.path.join(self.my_config.get_output_folder(),METADATA+suffix),'w')
+        metadata = open(os.path.join(self.out_folder,METADATA+suffix),'w')
         
         for ngramlen, datafile in datafile.items():
             filengram, fileidx, _ = datafile
@@ -208,7 +199,8 @@ class Cngram_index_creator:
             sorted_list = sorted(freq_dic.items(),key=itemgetter(1),reverse=True)
             del freq_dic
             for ngram,freq in sorted_list:
-                fic_out.write('%d %s\n' %(freq,ngram.encode('utf-8')))
+                if freq >= self.min_freq_for_ngram:
+                    fic_out.write('%d %s\n' %(freq,ngram.encode('utf-8')))
             fic_out.close()
             del sorted_list
             print>>sys.stderr,'  Output index ngram file:',fileidx
@@ -218,6 +210,17 @@ class Cngram_index_creator:
     
         self.load_input_files()
         
+        ##Create outfolder
+        if os.path.exists(self.out_folder):
+            if self.remove_out_if_exists:
+                shutil.rmtree(self.out_folder)
+                os.mkdir(self.out_folder)
+            else:
+                pass #Nothing if it exists and we dont want to remove it
+        else:
+             os.mkdir(self.out_folder)
+        ####
+             
         #Create the raw lists of ngrams
         for file in self.list_input_files:
             self.process_single_file(file)    
@@ -230,11 +233,30 @@ class Cngram_index_creator:
             self.create_indexes(subset=True)
         
 class Citem:
-    def __init__(self,line):
+    def __init__(self,line,with_pos=False):
         self.hits = None
         self.word = None
         self.tokens = None
-        self.load_from_string(line)
+        self.pos = []
+        if not with_pos:
+            self.load_from_string(line)
+        else:
+            self.load_from_string_with_pos(line)
+            
+    def load_from_string_with_pos(self,line):
+        # Example line: 22865,"de server van    DEL    pos1 pos2 pos3"
+        line = line.decode('utf-8').strip()
+        pos = line.find(' ')
+        self.hits = int(line[:pos])
+        all_tokens = line[pos+1:].split()
+        position_of_delimiter = len(all_tokens)/2
+        
+        #WORDS
+        self.tokens = all_tokens[:position_of_delimiter]
+        self.word = ' '.join(self.tokens)
+        
+        #POS
+        self.pos = all_tokens[position_of_delimiter+1:]
  
     def load_from_string(self,line):
         ## Example line: 22865,"de server van"
@@ -252,19 +274,23 @@ class Citem:
         # str_to_remove = 'quite * and'
         # tokens_to_remove = [quite,*,and]
         only_this = []
+        only_this_pos = []
         if len(tokens_to_remove) == len(self.tokens):
             for i in range(len(tokens_to_remove)):
                 if tokens_to_remove[i] != self.tokens[i]:
                     only_this.append(self.tokens[i])
+                    if len(self.pos) != 0:
+                        only_this_pos.append(self.pos[i])
 
             if len(only_this) != 0:
                 self.tokens = only_this
                 self.word = ' '.join(self.tokens)
+                self.pos = only_this_pos
         
             
     def __str__(self):
         if self.word is not None and self.hits is not None:
-            s = str(self.tokens)+' -> '+str(self.hits)+' hits'
+            s = str(self.tokens)+' POS:'+str(self.pos)+' -> '+str(self.hits)+' hits'
         else:
             s = 'None'
         return s
@@ -280,7 +306,10 @@ class Citem:
     
     def get_tokens(self):
         return self.tokens
-            
+    
+    def get_pos(self):
+        return self.pos
+    
 class Cngram_index_enquirer:
     def __init__(self,folder):
         self.folder = folder
@@ -320,22 +349,32 @@ class Cngram_index_enquirer:
         # replace * by .+
         for idx in range(0,len(tokens)):
             if tokens[idx] == '*': tokens[idx] = '.+'
+            else: tokens[idx] = re.escape(tokens[idx])
         
-        custom_query = ' '+'\\t'.join(tokens)+'$'
+        custom_query = ' '+'\\t'.join(tokens)+'\\t'+DELIMITER
                          
         return ngramlen, custom_query
         
         
     def run_grep(self,custom_query,fileidx,only_match,query_str=None):
         items = []
-        cmd = 'grep -P "'+custom_query+'" '+fileidx
+        os.environ['LC_ALL'] = 'C'
+        cmd = 'grep --mmap -P "'+custom_query+'" '+fileidx
         grep  = Popen(cmd, stdout=PIPE, stderr=PIPE , shell = True)
         out_stream, err_stream = grep.communicate()
+        #As could be several identical patterns like was-goed V-D or was-goed V-N we must filter out this
+        already_returned = set()
         for line in out_stream.splitlines():
-            new_item = Citem(line)
+            new_item = Citem(line,with_pos=True)
             if only_match:
                 new_item.remove_this(query_str)
-            items.append(new_item)
+            if new_item.word not in already_returned:
+                items.append(new_item)
+                already_returned.add(new_item.word)
+            else:
+                pass
+                #print>>sys.stderr,'Skipped ',str(new_item),'as was already returned' 
+                
         return items
             
         

@@ -27,6 +27,7 @@ $ cd lexical_pattern_extractor
 $ git clone https://github.com/cltl/VUA_pylib.git
 ````
 
+You will need to have installed NLTL (http://www.nltk.org) as well.
 
 ##Usage of the tool##
 
@@ -39,6 +40,7 @@ All the configuration options are provided on a configuration file that must fol
 [general]
 output_folder = my_folder
 seeds = toeristisch;interessante
+measure = pmi
 ngram_len = 3
 percent_selected_patterns = 25
 accept_patterns_with_at_least_num_seeds = 1
@@ -59,6 +61,9 @@ min_freq_for_hit_candidate_selection = 50
 
 The options under general are:
 * output_folder: output folder where you want to store all the generated data
+* measure: the type of measure used to compute the association pattern - word. The possible features
+can be found at http://www.nltk.org/api/nltk.metrics.html#nltk.metrics.association.BigramAssocMeasures and
+the possible names must be the same than in NLTK (pmi,chi_sq...)
 * seeds: List of ; separated seeds
 * ngram_len: Length of ngrams to generate, with 5 it will use 5-grams, 4-grams, 3-grams and 2-grams (only if no template section
 is included, and default templates are generated

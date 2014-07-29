@@ -66,6 +66,7 @@ class Config_manager:
         if self.config.has_option('general', 'punctuation'):
             p =  self.config.get('general', 'punctuation')
             my_list = p.strip().split(' ')
+        print my_list
         return my_list
     
     def get_convert_to_lowercase(self):
