@@ -67,7 +67,7 @@ class Config_manager:
     
     
     def get_filename_results_pattern(self):
-        my_name = 'extracted_patterns.xml'
+        my_name = 'extracted_patterns.'+self.get_measure_type()+'.xml'
         return os.path.join(self.out_folder,my_name)
     
    
@@ -105,7 +105,7 @@ class Config_manager:
             return 25
         
     def get_filename_csv(self):
-        my_name = 'candidate_words.csv'
+        my_name = 'candidate_words.'+self.get_measure_type()+'.csv'
         return os.path.join(self.get_out_folder(),my_name)
     
     def get_list_stop_words(self):
@@ -130,7 +130,7 @@ class Config_manager:
             return 0
                 
     def get_filename_candidate_list(self):
-        my_name = 'candidate_words.xml'
+        my_name = 'candidate_words.'+self.get_measure_type()+'.xml'
         return os.path.join(self.get_out_folder(),my_name)            
     
             
