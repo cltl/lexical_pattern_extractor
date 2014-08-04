@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import math
+import sys
 from nltk.metrics import BigramAssocMeasures
 
 '''''
@@ -64,20 +65,23 @@ class Cstat_model:
         return BigramAssocMeasures.student_t(self.n_ii,(self.n_ix, self.n_xi),self.n_xx)
     
     def apply_measure(self,type):
-        if type == 'raw_freq': return self.raw_freq()
-        elif type == 'chi_sq': return self.chi_sq()
-        elif type == 'dice':   return self.dice()
-        elif type == 'fisher': return self.fisher()
-        elif type == 'jaccard': return self.jaccard()
-        elif type == 'likelihood_ratio': return self.likelihood_ratio()
-        elif type == 'mi_like': return self.mi_like()
-        elif type == 'pmi': return self.pmi()
-        elif type == 'poisson_stirling': return self.poisson_stirling()
-        elif type == 'student_t': return self.student_t()
-        else:
-            ##Default
-            return self.pmi()
-        
+        try:
+            if type == 'raw_freq': return self.raw_freq()
+            elif type == 'chi_sq': return self.chi_sq()
+            elif type == 'dice':   return self.dice()
+            elif type == 'fisher': return self.fisher()
+            elif type == 'jaccard': return self.jaccard()
+            elif type == 'likelihood_ratio': return self.likelihood_ratio()
+            elif type == 'mi_like': return self.mi_like()
+            elif type == 'pmi': return self.pmi()
+            elif type == 'poisson_stirling': return self.poisson_stirling()
+            elif type == 'student_t': return self.student_t()
+            else:
+                ##Default
+                return self.pmi()
+        except Exception as e:
+            print>>sys.stderr,'Error applying measure',type,'n_ii:',self.n_ii,'n_io:',self.n_io,'n_oi:',self.n_oi,'n_oo:',self.n_oo
+            return None        
     
 if __name__ == '__main__':
     #de woede
@@ -85,6 +89,7 @@ if __name__ == '__main__':
     
     #de *
     n_io = 664386
+    n_io = -474
     #* woede
     ## QUERY!! *woede - n_ii
     n_oi = 664386
@@ -92,7 +97,7 @@ if __name__ == '__main__':
     #* *
     n_oo = 1.32*math.pow(10,15)
     obj = Cstat_model(n_ii,n_io,n_oi,n_oo)
-    print obj.raw_freq()
+    print obj.apply_measure('mi_like')
     
         
         
